@@ -1,0 +1,24 @@
+{
+  "name": "rickselby/svglapchart",
+  "type": "library",
+  "description": "",
+  "keywords": ["lapchart", "svg"],
+  "homepage": "https://github.com/rickselby/svglapchart",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Rick Selby",
+      "email": "rick@selby-family.co.uk",
+      "homepage": "https://github.com/rickselby",
+      "role": "Developer"
+    }
+  ],
+  "require": {
+    "php": ">=5.4.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "LapChart\\": "src/"
+    }
+  }
+}
