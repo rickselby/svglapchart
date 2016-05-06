@@ -14,7 +14,7 @@ class Chart
     protected $pathWidth;
 
     /** @var int[] List of cars lapped per lap */
-    protected $lapped;
+    protected $lapped = [];
 
     /** @var mixed[] Various settings used when generating the chart */
     protected $settings = [];
