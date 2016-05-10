@@ -8,25 +8,25 @@ class Chart
     protected $drivers;
 
     /** @var int Size of box (for graph size) */
-    protected $boxSize;
+    protected $lineHeight;
 
     /** @var int Width of driver line */
     protected $pathWidth;
 
     /** @var int[] List of cars lapped per lap */
-    protected $lapped;
+    protected $lapped = [];
 
     /** @var mixed[] Various settings used when generating the chart */
     protected $settings = [];
 
     /**
      * Initialise the chart. Optionally set the box size and path width.
-     * @param int $boxSize
+     * @param int $lineHeight
      * @param int $pathWidth
      */
-    public function __construct($boxSize = 20, $pathWidth = 4)
+    public function __construct($lineHeight = 20, $pathWidth = 4)
     {
-        $this->boxSize = $boxSize;
+        $this->lineHeight = $lineHeight;
         $this->pathWidth = $pathWidth;
         $this->settings = [
             'laps' => 0,
@@ -75,7 +75,7 @@ class Chart
         $width = $this->settings['graphWidth'] + $this->settings['namesWidth']
             + ($this->settings['numbersWidth'] * 2) + ($this->settings['padding'] * 2);
 
-        $height = $this->settings['graphHeight'] + $this->boxSize + ($this->settings['padding'] * 2);
+        $height = $this->settings['graphHeight'] + $this->lineHeight + ($this->settings['padding'] * 2);
 
         // Header
         $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="'.$width.'" height="'.$height.'">'
@@ -89,10 +89,10 @@ class Chart
 
                 .'<g>'.$this->doDriverNamesAndPositions().'</g>'
 
-                .'<g transform="translate('.($this->settings['namesWidth'] + $this->boxSize).', 0)">'
+                .'<g transform="translate('.($this->settings['namesWidth'] + $this->lineHeight).', 0)">'
                     .$this->highlightLapped()
-                    .'<g transform="translate('.($this->boxSize / 2).', 0)">'
-                        .'<g transform="translate(0, '.($this->boxSize / 2).')">'
+                    .'<g transform="translate('.($this->settings['graphBoxWidth'] / 2).', 0)">'
+                        .'<g transform="translate(0, '.($this->lineHeight / 2).')">'
                             .$this->doDriverLines()
                         .'</g>'
 
@@ -112,14 +112,16 @@ class Chart
      */
     private function setSettings()
     {
-        $fontSize = $this->boxSize * (5 / 8);
+        $fontSize = $this->lineHeight * (5 / 8);
 
         $this->settings['fontSize'] = $fontSize;
         $this->settings['namesWidth'] = $fontSize * $this->settings['longestName'] * (5 / 8);
-        $this->settings['numbersWidth'] = $this->boxSize;
-        $this->settings['graphWidth'] = $this->settings['laps'] * $this->boxSize;
-        $this->settings['graphHeight'] = count($this->drivers) * $this->boxSize;
-        $this->settings['padding'] = $this->boxSize;
+        $this->settings['numbersWidth'] = $this->lineHeight;
+        $this->settings['graphHeight'] = count($this->drivers) * $this->lineHeight;
+        // Golden Ratio!
+        $this->settings['graphWidth'] = 1.61803398875 * $this->settings['graphHeight'];
+        $this->settings['graphBoxWidth'] = $this->settings['graphWidth'] / $this->settings['laps'];
+        $this->settings['padding'] = $this->lineHeight / 2;
     }
 
     /**
@@ -130,7 +132,7 @@ class Chart
     {
         $svg = '';
         foreach($this->drivers AS $driver) {
-            $textY = ($this->boxSize * ($driver['positions'][0] - 1))
+            $textY = ($this->lineHeight * ($driver['positions'][0] - 1))
                 + ($this->settings['fontSize']);
             ;
             $svg .= '<text text-anchor="end" '
@@ -141,14 +143,14 @@ class Chart
                 . '>' . $driver['name'] . '</text>';
 
             $svg .= '<text text-anchor="end" '
-                . ' x="'.($this->settings['namesWidth'] + $this->boxSize).'" '
+                . ' x="'.($this->settings['namesWidth'] + $this->lineHeight).'" '
                 . ' y="' . $textY . '" '
                 . ' font-family="Helvetica,sans-serif" '
                 . ' font-size="' . $this->settings['fontSize'] . '" '
                 . '>' . $driver['positions'][0] . '</text>';
 
             $svg .= '<text text-anchor="start" '
-                . ' x="'.($this->settings['namesWidth'] + $this->boxSize + $this->settings['graphWidth']).'" '
+                . ' x="'.($this->settings['namesWidth'] + $this->lineHeight + $this->settings['graphWidth']).'" '
                 . ' y="' . $textY . '" '
                 . ' font-family="Helvetica,sans-serif" '
                 . ' font-size="' . $this->settings['fontSize'] . '" '
@@ -168,9 +170,9 @@ class Chart
         foreach($this->lapped AS $lap => $count) {
             if ($count > 0) {
                 $svg .= '<rect '
-                    .' x="'.($lap * $this->boxSize).'" '
-                    .' y="'.((count($this->drivers) - $count) * $this->boxSize).'" '
-                    .' width="'.$this->boxSize.'" height="'.($this->boxSize * $count).'" '
+                    .' x="'.($lap * $this->settings['graphBoxWidth']).'" '
+                    .' y="'.((count($this->drivers) - $count) * $this->lineHeight).'" '
+                    .' width="'.$this->settings['graphBoxWidth'].'" height="'.($this->lineHeight * $count).'" '
                     .' style="stroke-width:0; fill: lightgray" '
                     .'></rect>';
 
@@ -190,26 +192,70 @@ class Chart
 
             $points = [];
             foreach($driver['positions'] AS $lap => $pos) {
-                $points[] = ($lap * $this->boxSize)
+                $points[] = ($lap * $this->settings['graphBoxWidth'])
                     .','
-                    .(($pos-1) * $this->boxSize);
+                    .(($pos-1) * $this->lineHeight);
             }
 
             if (count($points) == 1) {
                 $point = explode(',', $points[0]);
-                $svg .= '<circle cx="'.$point[0].'" cy="'.$point[1].'" r="'.($this->pathWidth / 2).'" fill="'.$driver['colour'].'" />';
+                $svg .= '<circle cx="'.$point[0].'" cy="'.$point[1].'" r="'.($this->pathWidth / 2).'" ';
+                if ($this->getSecondaryColour($driver)) {
+                    $svg .= ' stroke="'.$this->getPrimaryColour($driver).'" '
+                        .' fill="'.$this->getSecondaryColour($driver).'" ';
+                } else {
+                    $svg .= ' fill="'.$this->getPrimaryColour($driver).'" ';
+                }
+                $svg .= ' />';
             } else {
                 $svg .= '<polyline '
-                    .' points="'.implode(' ', $points).'" '
-                    .' stroke="'.$driver['colour'].'" '
-                    .' stroke-width="'.$this->pathWidth.'" '
-                    .' fill="none" '
-                    .'></polyline>';
+                    . ' points="' . implode(' ', $points) . '" '
+                    . ' stroke="' . $this->getPrimaryColour($driver) . '" '
+                    . ' stroke-width="' . $this->pathWidth . '" '
+                    . ' stroke-linecap="round" '
+                    . ' fill="none" '
+                    . '></polyline>';
+                if ($this->getSecondaryColour($driver)) {
+                    $svg .= '<polyline '
+                        . ' points="' . implode(' ', $points) . '" '
+                        . ' stroke="' . $this->getSecondaryColour($driver) . '" '
+                        . ' stroke-width="'.($this->pathWidth * (1/3)).'1.25" '
+                        . ' stroke-linecap="round" '
+                        . ' fill="none" '
+                        . '></polyline>';
+                }
             }
-
         }
 
         return $svg;
+    }
+
+    /**
+     * Get the drivers' primary colour
+     * @param $driver
+     * @return string
+     */
+    private function getPrimaryColour($driver)
+    {
+        if (is_array($driver['colour'])) {
+            return $driver['colour'][0];
+        } else {
+            return $driver['colour'];
+        }
+    }
+
+    /**
+     * Get the drivers' secondary colour (if it exists)
+     * @param $driver
+     * @return string|null
+     */
+    private function getSecondaryColour($driver)
+    {
+        if (is_array($driver['colour'])) {
+            return $driver['colour'][1];
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -218,15 +264,14 @@ class Chart
      */
     private function doLapLine()
     {
-
         $svg = '<line '
             .' x1="0" y1="2" '
-            .' x2="'.(($this->settings['laps'] - 1) * $this->boxSize).'" y2="2" '
+            .' x2="'.(($this->settings['laps'] - 1) * $this->settings['graphBoxWidth']).'" y2="2" '
             .' stroke="black" stroke-width="1"></line>';
 
         for ($i = 0; $i < $this->settings['laps']; $i++) {
-            $x = ($i * $this->boxSize);
-            $smallFontSize = $this->boxSize * (4 / 8);
+            $x = ($i * $this->settings['graphBoxWidth']);
+            $smallFontSize = $this->lineHeight * (4 / 8);
 
             $svg .= '<line '
                 .' x1="'.$x.'" y1="0" '
@@ -239,7 +284,6 @@ class Chart
                 . ' font-family="Helvetica,sans-serif" '
                 . ' font-size="' . $smallFontSize . '" '
                 . '>' . ($i == 0 ? 'Start' : $i) . '</text>';
-
         }
 
         return $svg;
