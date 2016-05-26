@@ -219,7 +219,7 @@ class Chart
                     $svg .= '<polyline '
                         . ' points="' . implode(' ', $points) . '" '
                         . ' stroke="' . $this->getSecondaryColour($driver) . '" '
-                        . ' stroke-width="'.($this->pathWidth * (1/3)).'1.25" '
+                        . ' stroke-width="'.($this->pathWidth * (1/3)).'" '
                         . ' stroke-linecap="round" '
                         . ' fill="none" '
                         . '></polyline>';
